@@ -1,0 +1,13 @@
+http://20.203.139.43:7000/project/getAll
+
+[{"projectName":"SuitProject001","designed":4,"ready":2,"manual":2,"automated":4},{"projectName":"SuitProject002","designed":2,"ready":2,"manual":4,"automated":4}]
+
+http://20.203.139.12:8080/TestExecutedDashboard/areaChartData/SuitProject001
+http://20.203.139.12:8080/TestExecutedDashboard/pieChartData/SuitProject001
+
+http://20.203.139.20:7000/project/getAllProjectName
+
+["SuitProject001","SuitProject002"]
+
+http://20.203.139.20:7000/project/SuitProject001
+{"projectName":"SuitProject001","designed":4,"ready":2,"manual":2,"automated":4}
