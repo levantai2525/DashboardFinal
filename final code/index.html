@@ -1,0 +1,445 @@
+<html>
+  <head>
+	<title>Quality Dashboard</title>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular-route.js"></script>
+	
+    <script type="text/javascript">
+		google.charts.load("current", {packages:["corechart"]});
+		google.charts.load('current', {'packages':['line']});
+		google.charts.setOnLoadCallback(function() {
+			angular.bootstrap(document.body, ['myApp']);
+		});
+		var app = angular.module('myApp', ["ngRoute"]);
+		app.config(function($routeProvider) {
+			$routeProvider
+			.when("/", {
+				templateUrl : "quality-dashboard.html"
+			})
+			.when("/defect", {
+				templateUrl : "defect-dashboard.html"
+			})
+			.when("/excution", {
+				templateUrl : "test-excution-dashboard.html"
+			})
+			.when("/design", {
+				templateUrl : "test-design-dashboard.html"
+			});
+		});
+		app.controller('MyCtrl', function($scope,$http,$rootScope) {
+		//$rootScope.a=9;
+			
+		//Empty values for data chart Automation
+		$rootScope.Automation=[];
+		//Empty values for data chart Design Status
+		$rootScope.DesignStatus=[];
+		//Empty values for data chart Test Excution
+		$rootScope.TestExcution=[];
+		// Empty values for data chart Test Defect Status
+		$rootScope.DefectStatus=[];
+		// Empty values for data chart Test Defect Severity
+		$rootScope.DefectSeverity=[];
+		
+			$scope.projects = [];
+			$scope.currentProject = {
+					name : name,
+					details : {
+						testExcution:[],
+						defects:[],
+						testdesign:[]
+					
+					}
+				};
+			
+			// When never user click, change currentProject model, for demo using the first one
+			$scope.setCurrentProject = function(name){
+				//$scope.currentProject = $scope.projects[index];
+				$rootScope.nameProject=name;
+				$scope.setCurrentProjectTestExcution(name);
+				$scope.setCurrentProjectDefects(name);
+				$http({
+					method : "GET",
+					url : "http://localhost:8080/itsQualityDashboard/testdesign/" + name
+				}).then(function mySuccess(response) {
+				 //$scope.myWelcome = response.data.totalReady;
+					$scope.currentProject.name=response.data.nameProject;
+					$scope.currentProject.details.testdesign = [
+						['Design',     response.data.totalDesigned],
+						['Ready',      response.data.totalReady]
+					]
+					//Value rootScope Test Design Status
+					$rootScope.DesignStatus=[
+								["Status", "Value", { role: "style" } ],
+								["Designed", response.data.totalDesigned, "blue"],
+								["Ready", response.data.totalReady, "blue"],
+								
+							  ];
+					//Value rootScope Test Design
+					$rootScope.Automation=[
+						['Automated',response.data.totalAutomate],
+						[ 'Manual', response.data.totalManual]
+					]
+				}, function myError(response) {
+					$scope.myWelcome = response.statusText;
+				});
+				
+			}
+			
+			$scope.setCurrentProjectTestExcution = function(name){
+				$http({
+					method : "GET",
+					url : "http://localhost:8080/itsQualityDashboard/testexcution/" + name
+				}).then(function mySuccess(response) {
+					$scope.currentProject.details.testExcution = [
+							['Never Run',     response.data.totalNeverRun],
+							['Blocked',      response.data.totalBlocked],
+							['Failed',  response.data.totalFailed],
+							['Passed', response.data.totalPass]
+					]
+					$rootScope.TestExcution=$scope.currentProject.details.testExcution;
+		
+				}, function myError(response) {
+					$scope.myWelcome = response.statusText;
+				});
+				
+			}
+			
+			
+			$scope.setCurrentProjectDefects = function(name){
+				$http({
+					method : "GET",
+					url : "http://localhost:8080/itsQualityDashboard/defects/" + name
+				}).then(function mySuccess(response) {
+					$scope.currentProject.details.defects = [
+					        ['Closed',     response.data.totalClosed],
+							['Opended',      response.data.totalOpened],
+							['Resolved',  response.data.totalResolved]
+					];
+					$rootScope.DefectStatus=$scope.currentProject.details.defects;
+					$rootScope.DefectSeverity=[
+					        ['Critical',     response.data.totalCritical],
+							['Major',      response.data.totalMajor],
+							['Minor',  response.data.totalMinor]
+					];
+				}, function myError(response) {
+					$scope.myWelcome = response.statusText;
+				});
+				
+			}
+			
+			
+			$scope.loadProjects = function(){
+				$http({
+					method : "GET",
+					url : "http://localhost:8080/itsQualityDashboard/projects"
+					}).then(function mySuccess(response) {
+						console.log(response);
+						var data = response.data;
+						for (var i=0; i<data.length; i++)
+						{
+							$scope.projects[i] = {name : data[i].name};
+						}
+						$scope.setCurrentProject($scope.projects[0].name);
+			
+					}, function myError(response) {
+						$scope.myWelcome = response.statusText;
+					});
+			}
+			
+			
+			
+			
+			$scope.loadProjects();
+				
+		});
+		
+	//Call Controller for Test Design draw Chart  
+		app.controller('myCtrlTestDesign',function($rootScope){
+		google.charts.setOnLoadCallback(drawDesignStatus);
+		google.charts.setOnLoadCallback(drawAutomation);
+		
+		
+	
+	// Callback that draws the pie chart for Test Design Automation
+		function drawAutomation() {
+			var data = new google.visualization.DataTable();
+					data.addColumn('string', 'Title');
+					data.addColumn('number', 'Count');
+					data.addRows($rootScope.Automation);
+
+			var options = {
+				  title: 'Automation',
+				  is3D: true,
+				  legend: { position: "bottom" }
+			};
+
+        var chart = new google.visualization.PieChart(document.getElementById('piechart_3d'));
+        chart.draw(data, options);
+      }
+	// Callback that draws the column chart for Test Design Status
+		function drawDesignStatus() {
+			var data = google.visualization.arrayToDataTable($rootScope.DesignStatus);
+
+			var view = new google.visualization.DataView(data);
+				  view.setColumns([0, 1,
+								   { calc: "stringify",
+									 sourceColumn: 1,
+									 type: "string",
+									 role: "annotation" },
+								   2]);
+
+			 var options = {
+						title: "Design Status",
+						width: 600,
+						height: 400,
+						bar: {groupWidth: "60%"},
+						legend: { position: "none" },
+						backgroundColor: "gray",
+					  };
+		  var chart = new google.visualization.ColumnChart(document.getElementById("columnchart_values"));
+		  chart.draw(view, options);
+	  }
+		
+	});	
+	
+	//Call Controller for Test Excution draw Chart  
+	
+	app.controller('myCtrlTestExcution',function($rootScope,$scope,$http){
+	google.charts.setOnLoadCallback(drawTestPlanProgress);
+	google.charts.setOnLoadCallback(drawTestExcution);
+	//Empty values for dataProgress 
+	$scope.dataProgress=[];
+	
+	// Callback that draws the pie chart for Test Excution
+	function drawTestExcution() {
+		var data = new google.visualization.DataTable();
+					data.addColumn('string', 'Title');
+					data.addColumn('number', 'Count');
+					data.addRows($rootScope.TestExcution);
+
+        var options = {
+          title: 'Automation',
+          is3D: true,
+		  legend: { position: "bottom" }
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById('piechart_3d'));
+        chart.draw(data, options);
+       }
+	 // Callback that draws the Area chart for Test Plan Progress  
+	function drawTestPlanProgress() {
+		var data = new google.visualization.DataTable();
+					data.addColumn('string', 'Date');
+					data.addColumn('number', 'Never Run');
+					data.addColumn('number', 'Failed');
+					data.addColumn('number', 'Blocked');
+					data.addColumn('number', 'Passed');
+					data.addRows($scope.dataProgress);
+		 
+
+        var options = {
+			title: 'Test Plan Progress',
+			isStacked: true,
+			height: 300,
+			colors:['#1E8449','#922B21','#9B59B6','#2C3E50'],
+			legend: {position: 'top', maxLines: 3},
+			vAxis: {minValue: 0}
+        };
+
+        var chart = new google.visualization.AreaChart(document.getElementById('chart_area'));
+        chart.draw(data, options);
+	}
+	
+		$scope.testPlanProgress = function(){
+			$http({
+				method : "GET",
+				url : "http://localhost:8080/itsQualityDashboard/testplanprogress/"+$rootScope.nameProject
+			}).then(function mySuccess(response) {
+				console.log(response);
+				var data = response.data;
+				for (var i=0; i<data.length; i++)
+				{
+					$scope.dataProgress[i]=[data[i].date.toString(),data[i].totalNeverRun,data[i].totalFailed,data[i].totalBlocked,data[i].totalPass
+					];
+				}
+				drawTestPlanProgress();
+			}, function myError(response) {
+				$scope.myWelcome = response.statusText;
+			});
+		}
+		$scope.testPlanProgress();
+	});	
+	
+	//Call Controller for Test Defect draw Chart
+	app.controller('myCtrlTestDefect',function($rootScope,$scope,$http){
+	google.charts.setOnLoadCallback(drawChartDefectSeverity);
+	google.charts.setOnLoadCallback(drawChartDefectStatus);
+	google.charts.setOnLoadCallback(drawLineChartDefect);
+	//Empty values for  dataLineChart
+	$scope.dataLineChart=[];
+
+	// Callback that draws the pie chart for Test Defect Status
+	function drawChartDefectStatus() {
+		var data = new google.visualization.DataTable();
+					data.addColumn('string', 'Title');
+					data.addColumn('number', 'Count');
+					data.addRows($rootScope.DefectStatus);
+
+        var options = {
+			  title: 'Status',
+			  is3D: true,
+			  legend: { position: "bottom" }
+			};
+
+        var chart = new google.visualization.PieChart(document.getElementById('piechart_3d'));
+        chart.draw(data, options);
+       }
+	 // Callback that draws the pie chart for Test Defect Severity
+	function drawChartDefectSeverity() {
+
+        var data = new google.visualization.DataTable();
+					data.addColumn('string', 'Title');
+					data.addColumn('number', 'Count');
+					data.addRows($rootScope.DefectSeverity);
+
+        var options = {
+          title:'Severity', 
+		  titleTextStyle:{
+			position:'center',
+			fontSize: 60,
+			bold: true
+		  },
+		  backgroundColor:'#DBDDE0',
+		  legend:{
+				position:'bottom'
+		  },
+		   slices: { 
+				0: {color:'#1C49BB'},
+				1: {color:'#F58907'},
+				2: {color:'#A8A5A1'},
+          }
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById('chart_defect_severity'));
+
+        chart.draw(data, options);
+      }
+	//Callback that draws the Line Chart for Test Defect
+	function drawLineChartDefect() {
+
+		  var data = new google.visualization.DataTable();
+		  data.addColumn('string', 'Date');
+		  data.addColumn('number', 'Opened');
+		  data.addColumn('number', 'Resolved');
+		  data.addColumn('number', 'Closed');
+		   data.addRows($scope.dataLineChart);
+
+		  var options = {
+			<!-- chart: { -->
+			  <!-- title: 'Box Office Earnings in First Two Weeks of Opening', -->
+			  <!-- subtitle: 'in millions of dollars (USD)' -->
+			<!-- }, -->
+			
+			<!-- width: 900, -->
+			<!-- height: 500, -->
+			
+			hAxis:{ 
+				gridlines:{
+					count:1
+				},
+				
+			},
+			
+			<!-- vAxis: { -->
+			  <!-- ticks: [0, 0.5, 1, 1.5, 2, 2.5], -->
+			<!-- }, -->
+			series: {
+				0: { color: '#1E90FF' },
+				1: { color: '#FF8C00' },
+				2: { color: '#006400' },
+			 }
+		  };
+
+		  var chart = new google.charts.Line(document.getElementById('line_chart_defect'));
+
+		  chart.draw(data, google.charts.Line.convertOptions(options));
+		}
+		
+		$scope.lineChartDefect = function(){
+			$http({
+				method : "GET",
+				url : "http://localhost:8080/itsQualityDashboard/linechartbugs/"+$rootScope.nameProject
+			}).then(function mySuccess(response) {
+			 //$scope.nameProject = response.data.totalReady;
+			//$scope.projects 
+				console.log(response);
+				var data = response.data;
+				for (var i=0; i<data.length; i++)
+				{
+					$scope.dataLineChart[i]=[data[i].date.toString(),data[i].totalOpened,data[i].totalResolved,data[i].totalClosed
+					];
+					//$scope.projects[i] = {name : data[i].name};
+				}
+					//$scope.testdate=data[0].date;
+				drawLineChartDefect();
+			}, function myError(response) {
+				$scope.myWelcome = response.statusText;
+			});
+		}
+		$scope.lineChartDefect();
+	});	
+		
+      app.directive('chart', function() {
+          return {
+            restrict: 'A',
+			scope: {
+				details: '=',
+				title: '@'
+			},
+            link: function($scope, $elm, $attr) {
+			
+				// waching when change Data to re-render
+				$scope.$watch('details', function(){
+					var data = new google.visualization.DataTable();
+					data.addColumn('string', 'Title');
+					data.addColumn('number', 'Count');
+					data.addRows($scope.details);
+				  
+					//var data = google.visualization.arrayToDataTable($scope.details);
+
+					var options = {
+						title: $scope.title,
+						is3D: true,
+					};
+					var chart = new google.visualization.PieChart($elm[0]);
+					chart.draw(data, options);
+				  
+					
+					<!-- Add details -->
+					var ths = '';
+					var tds = ''
+					angular.forEach($scope.details, function(v) {
+						ths += '<th>'+ v[0] +'</th>';
+						tds += '<td>'+ v[1] +'</td>';
+					});
+					
+					var detailsElem = '<table><tr>' + ths + '</tr><tr>' + tds + '</tr></table>';
+					
+					$elm.append(detailsElem);
+	
+				});
+				
+				
+				
+            }
+		}
+      });
+    
+  </script>
+<body>   
+	<div ng-view></div>
+</body>
+  
+</html>
